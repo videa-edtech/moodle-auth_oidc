@@ -258,7 +258,7 @@ class auth_plugin_oidc extends \auth_plugin_base {
      * @param string $password plain text password (with system magic quotes)
      */
     public function user_authenticated_hook(&$user, $username, $password) {
-        global $DB;
+        global $DB, $CFG, $SESSION;
         if (!empty($user) && !empty($user->auth) && $user->auth === 'oidc') {
             $tokenrec = $DB->get_record('auth_oidc_token', ['userid' => $user->id]);
             if (!empty($tokenrec)) {
@@ -291,6 +291,132 @@ class auth_plugin_oidc extends \auth_plugin_base {
             ];
             $event = \auth_oidc\event\user_loggedin::create($eventdata);
             $event->trigger();
+
+	        // #CORE-MOD
+	        // @edward: Sync Vloom permission group by configured role mapping (if provided) and auto redirect to vloom admin.
+            $this->sync_vloom_group_by_roles_claim($user, $tokenrec ?? null);
+
+	        $urltogo = "{$CFG->wwwroot}/vloom/dashboard/index.php#dashboard";
+	        $SESSION->wantsurl = $urltogo;
+        }
+    }
+
+	// #CORE-MOD
+	// @edward: Mapping of user ACL to Vloom permission groups.
+    /**
+     * Sync current Moodle user to a Vloom permission group based on id_token roles claim.
+     *
+     * @param \stdClass $user
+     * @param \stdClass|null $tokenrec
+     * @return void
+     */
+    protected function sync_vloom_group_by_roles_claim(\stdClass $user, ?\stdClass $tokenrec): void {
+        if (empty($tokenrec) || empty($tokenrec->idtoken) || !class_exists('Vloom') || !class_exists('\\Vloom\\Permission\\Group')) {
+            return;
+        }
+
+        $mapping = $this->get_vloom_role_mapping();
+        if (empty($mapping)) {
+            return;
+        }
+
+        try {
+            $idtoken = \auth_oidc\jwt::instance_from_encoded($tokenrec->idtoken);
+            $roles = $idtoken->claim('roles');
+        } catch (\Exception $e) {
+            \auth_oidc\utils::debug('Unable to decode id_token while syncing Vloom group.', __METHOD__, $e->getMessage());
+            return;
+        }
+
+        if (is_string($roles)) {
+            $roles = [$roles];
+        }
+
+        if (!is_array($roles) || empty($roles)) {
+            return;
+        }
+
+        foreach ($roles as $role) {
+            if (!is_string($role) || !array_key_exists($role, $mapping)) {
+                continue;
+            }
+
+            $group = $this->resolve_vloom_group($mapping[$role]);
+            if (empty($group)) {
+                continue;
+            }
+
+            try {
+                $vloomuser = \Vloom::userClass()::from($user);
+                $vloomuser->group = $group;
+                $vloomuser->save();
+            } catch (\Exception $e) {
+                \auth_oidc\utils::debug('Unable to assign Vloom group from mapped role.', __METHOD__, $e->getMessage());
+            }
+
+            // Stop at the first mapped role that resolves to a valid group.
+            return;
+        }
+    }
+
+    /**
+     * Return configured role-to-group mapping from plugin config.
+     *
+     * @return array<string, string>
+     */
+    protected function get_vloom_role_mapping(): array {
+        $rawmapping = trim((string)get_config('auth_oidc', 'vloomrolemapping'));
+        if ($rawmapping === '') {
+            return [];
+        }
+
+        $mapping = json_decode($rawmapping, true);
+        if (!is_array($mapping)) {
+            \auth_oidc\utils::debug('Invalid auth_oidc/vloomrolemapping JSON.', __METHOD__, $rawmapping);
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($mapping as $role => $groupid) {
+            if (!is_string($role) || $role === '' || !is_string($groupid) || trim($groupid) === '') {
+                continue;
+            }
+            $normalized[$role] = trim($groupid);
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Resolve configured target value into a Vloom permission group instance.
+     *
+     * Supported values: group numeric id, group shortname, or group idName.
+     *
+     * @param string $groupid
+     * @return \Vloom\Permission\Group|null
+     */
+    protected function resolve_vloom_group(string $groupid): ?\Vloom\Permission\Group {
+        try {
+            if (ctype_digit($groupid)) {
+                $group = \Vloom\Permission\Group::getByID((int)$groupid);
+                if (!empty($group)) {
+                    return $group;
+                }
+            }
+
+            $group = \Vloom\Permission\Group::query()
+                -> where(\Vloom\Permission\Group::col('shortname'), $groupid)
+                -> first();
+            if (!empty($group)) {
+                return $group;
+            }
+
+            return \Vloom\Permission\Group::query()
+                -> where(\Vloom\Permission\Group::col('idName'), $groupid)
+                -> first();
+        } catch (\Exception $e) {
+            \auth_oidc\utils::debug('Unable to resolve Vloom permission group.', __METHOD__, $e->getMessage());
+            return null;
         }
     }
 

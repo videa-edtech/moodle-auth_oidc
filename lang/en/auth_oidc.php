@@ -101,6 +101,10 @@ $string['clientcertpassphrase'] = 'Client certificate passphrase';
 $string['clientcertpassphrase_help'] = 'If the client certificate private key is encrypted, this is the passphrase to decrypt it.';
 $string['cfg_domainhint_key'] = 'Domain Hint';
 $string['cfg_domainhint_desc'] = 'When using the <b>Authorization Code</b> login flow, pass this value as the "domain_hint" parameter. "domain_hint" is used by some OpenID Connect IdP to make the login process easier for users. Check with your provider to see whether they support this parameter.';
+$string['cfg_vloomrolemapping_key'] = 'Vloom role mapping';
+$string['cfg_vloomrolemapping_desc'] = 'Optional JSON object for mapping IdP role claims to Vloom permission group identifiers.<br/>Format example:<br/><pre>{
+  "APP-AZ-VN-MRISE-IT-Admin-NonProd": "vloom:admin:nonprod"
+}</pre><br/>Keys are role names from the <span class="code">roles</span> claim in the ID token. Values can be Vloom permission group shortname, idName, or numeric group id.';
 $string['cfg_err_invalidauthendpoint'] = 'Invalid Authorization Endpoint';
 $string['cfg_err_invalidtokenendpoint'] = 'Invalid Token Endpoint';
 $string['cfg_err_invalidclientid'] = 'Invalid client ID';

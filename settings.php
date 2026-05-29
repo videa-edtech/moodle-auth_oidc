@@ -96,6 +96,10 @@ if ($hassiteconfig) {
     $settings->add(new admin_setting_configtext('auth_oidc/domainhint',
         get_string('cfg_domainhint_key', 'auth_oidc'), get_string('cfg_domainhint_desc', 'auth_oidc'), '' , PARAM_TEXT));
 
+    // Role to Vloom permission/group mapping.
+    $settings->add(new admin_setting_configtextarea('auth_oidc/vloomrolemapping',
+        get_string('cfg_vloomrolemapping_key', 'auth_oidc'), get_string('cfg_vloomrolemapping_desc', 'auth_oidc'), '', PARAM_RAW));
+
     // Login flow.
     $settings->add(new auth_oidc_admin_setting_loginflow('auth_oidc/loginflow',
         get_string('cfg_loginflow_key', 'auth_oidc'), '', 'authcode'));
