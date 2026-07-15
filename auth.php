@@ -336,26 +336,34 @@ class auth_plugin_oidc extends \auth_plugin_base {
             return;
         }
 
+        $targetgroup = null;
         foreach ($roles as $role) {
             if (!is_string($role) || !array_key_exists($role, $mapping)) {
                 continue;
             }
 
-            $group = $this->resolve_vloom_group($mapping[$role]);
-            if (empty($group)) {
-                continue;
+            $group = $this -> resolve_vloom_group($mapping[$role]);
+            if (!empty($group)) {
+                // Stop at the first mapped role that resolves to a valid group.
+                $targetgroup = $group;
+                break;
             }
+        }
 
-            try {
-                $vloomuser = \Vloom::userClass()::from($user);
-                $vloomuser->group = $group;
-                $vloomuser->save();
-            } catch (\Exception $e) {
-                \auth_oidc\utils::debug('Unable to assign Vloom group from mapped role.', __METHOD__, $e->getMessage());
+        // Reconcile membership so a role change is always reflected: move the user
+        // into the mapped group, or clear a now-stale group when the current roles
+        // map to nothing (e.g. the IdP revoked the role). The group is a single
+        // group_id column, so assigning replaces and null removes the old group.
+        // Only reached once roles were decoded successfully, so a malformed token
+        // never wipes a group.
+        try {
+            $vloomuser = \Vloom::userClass()::from($user);
+            if (($vloomuser -> group ?-> id) !== ($targetgroup ?-> id)) {
+                $vloomuser -> group = $targetgroup;
+                $vloomuser -> save();
             }
-
-            // Stop at the first mapped role that resolves to a valid group.
-            return;
+        } catch (\Exception $e) {
+            \auth_oidc\utils::debug('Unable to sync Vloom group from mapped roles.', __METHOD__, $e -> getMessage());
         }
     }
 
