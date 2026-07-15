@@ -182,6 +182,35 @@ class authcode extends base {
     }
 
     /**
+     * Resolve where to send the user after a successful authorization-code login.
+     *
+     * Honours the "Login redirect URI" plugin setting (auth_oidc/loginredirecturi): a
+     * site-relative path (e.g. /vloom/dashboard/index.php) or an absolute URL. When the
+     * setting has never been configured it defaults to the Vloom dashboard; when it is
+     * explicitly blank it falls back to Moodle's default return URL (the original
+     * wantsurl, or the site home).
+     *
+     * @return moodle_url
+     */
+    protected function get_login_redirect_url(): moodle_url {
+        $target = get_config('auth_oidc', 'loginredirecturi');
+
+        // Not configured yet — default to the Vloom dashboard.
+        if ($target === false) {
+            $target = '/vloom/dashboard/index.php';
+        }
+
+        $target = trim((string)$target);
+
+        // Explicitly blank — use Moodle's default return URL.
+        if ($target === '') {
+            return new moodle_url(core_login_get_return_url());
+        }
+
+        return new moodle_url($target);
+    }
+
+    /**
      * This is the primary method that is used by the authenticate_user_login() function in moodlelib.php.
      *
      * @param string $username The username (with system magic quotes)
@@ -402,7 +431,7 @@ class authcode extends base {
                 $authoidsidrecord->timecreated = time();
                 $DB->insert_record('auth_oidc_sid', $authoidsidrecord);
             }
-            redirect(core_login_get_return_url());
+            redirect($this->get_login_redirect_url());
         }
     }
 

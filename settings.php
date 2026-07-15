@@ -252,6 +252,12 @@ if ($hassiteconfig) {
     $settings->add(new admin_setting_configcheckbox('auth_oidc/debugmode',
         get_string('cfg_debugmode_key', 'auth_oidc'), get_string('cfg_debugmode_desc', 'auth_oidc'), '0'));
 
+    // Where to send the user after a successful authorization-code login. Leave blank to use
+    // Moodle's default return URL (the original wantsurl, or the site home).
+    $settings->add(new admin_setting_configtext('auth_oidc/loginredirecturi',
+        get_string('cfg_loginredirecturi_key', 'auth_oidc'), get_string('cfg_loginredirecturi_desc', 'auth_oidc'),
+        '/vloom/dashboard/index.php', PARAM_RAW_TRIMMED));
+
     $ADMIN->add('oidcfolder', $settings);
 
     // Cleanup OIDC tokens page.
