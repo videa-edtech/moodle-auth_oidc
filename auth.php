@@ -310,7 +310,7 @@ class auth_plugin_oidc extends \auth_plugin_base {
      * @param \stdClass|null $tokenrec
      * @return void
      */
-    protected function sync_vloom_group_by_roles_claim(\stdClass $user, ?\stdClass $tokenrec): void {
+    public function sync_vloom_group_by_roles_claim(\stdClass $user, ?\stdClass $tokenrec): void {
         if (empty($tokenrec) || empty($tokenrec->idtoken) || !class_exists('Vloom') || !class_exists('\\Vloom\\Permission\\Group')) {
             return;
         }

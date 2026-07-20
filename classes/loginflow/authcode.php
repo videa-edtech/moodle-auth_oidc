@@ -810,6 +810,14 @@ class authcode extends base {
                         }
                     }
                     $user = create_user_record($username, '', 'oidc');
+
+                    // #CORE-MOD
+                    // @edward: Sync Vloom permission group by configured role mapping (if provided) and auto redirect to vloom admin.
+                    $oidcauth = get_auth_plugin('oidc');
+                    if ($oidcauth instanceof \auth_plugin_oidc) {
+                        $oidcauth->sync_vloom_group_by_roles_claim($user, $tokenrec ?? null);
+                    }
+
                 } else {
                     // Trigger login failed event.
                     $failurereason = AUTH_LOGIN_NOUSER;
