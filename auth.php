@@ -284,6 +284,10 @@ class auth_plugin_oidc extends \auth_plugin_base {
                 }
             }
 
+            // #CORE-MOD
+            // @edward: Sync Vloom permission group by configured role mapping (if provided) and auto redirect to vloom admin.
+            $this->sync_vloom_group_by_roles_claim($user, $tokenrec ?? null);
+
             $eventdata = [
                 'objectid' => $user->id,
                 'userid' => $user->id,
@@ -291,10 +295,6 @@ class auth_plugin_oidc extends \auth_plugin_base {
             ];
             $event = \auth_oidc\event\user_loggedin::create($eventdata);
             $event->trigger();
-
-	        // #CORE-MOD
-	        // @edward: Sync Vloom permission group by configured role mapping (if provided) and auto redirect to vloom admin.
-            $this->sync_vloom_group_by_roles_claim($user, $tokenrec ?? null);
 
 	        $urltogo = "{$CFG->wwwroot}/vloom/dashboard/index.php#dashboard";
 	        $SESSION->wantsurl = $urltogo;
