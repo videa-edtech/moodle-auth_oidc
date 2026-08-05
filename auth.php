@@ -367,6 +367,40 @@ class auth_plugin_oidc extends \auth_plugin_base {
         }
     }
 
+	// #CORE-MOD
+	// @edward: OIDC provisions agents, not candidates.
+    /**
+     * Flag a Moodle user as an AGENT in Vloom.
+     *
+     * A user created by the OIDC login flow only gets the three fields User::from() writes,
+     * so mcf_type lands on its CANDIDATE column default and the account would be treated as a
+     * candidate (restricted dashboard, roadmap gating). OIDC identities are agents here, so the
+     * flag is set explicitly. Crossing into AGENT stamps becameAgentAt and fires AGENT_ACTIVATED
+     * exactly once through the model's own lifecycle; the equality guard keeps a repeat call
+     * from writing at all.
+     *
+     * @param \stdClass $user
+     * @return void
+     */
+    public function set_vloom_mcf_type_agent(\stdClass $user): void {
+        if (!class_exists('Vloom')) {
+            return;
+        }
+
+        try {
+            $vloomuser = \Vloom::userClass()::from($user);
+
+            if ($vloomuser -> mcfType === $vloomuser::MCF_TYPE_AGENT) {
+                return;
+            }
+
+            $vloomuser -> mcfType = $vloomuser::MCF_TYPE_AGENT;
+            $vloomuser -> save();
+        } catch (\Exception $e) {
+            \auth_oidc\utils::debug('Unable to flag Vloom user as AGENT.', __METHOD__, $e -> getMessage());
+        }
+    }
+
     /**
      * Return configured role-to-group mapping from plugin config.
      *

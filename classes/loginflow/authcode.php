@@ -813,9 +813,12 @@ class authcode extends base {
 
                     // #CORE-MOD
                     // @edward: Sync Vloom permission group by configured role mapping (if provided) and auto redirect to vloom admin.
+                    // The new account is also flagged AGENT — without it the Vloom record would keep
+                    // the CANDIDATE column default it was created with.
                     $oidcauth = get_auth_plugin('oidc');
                     if ($oidcauth instanceof \auth_plugin_oidc) {
                         $oidcauth->sync_vloom_group_by_roles_claim($user, $tokenrec ?? null);
+                        $oidcauth->set_vloom_mcf_type_agent($user);
                     }
 
                 } else {
